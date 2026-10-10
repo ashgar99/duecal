@@ -1,12 +1,17 @@
 // Duecal: put every Moodle deadline in your calendar
 // Collects assignment, quiz and other activity deadlines from your Moodle 4
 // modules and downloads them as one calendar file (.ics) for Apple, Google
-// or Outlook Calendar. Run it on any Moodle page while logged in. On a module
-// page it covers that module only; anywhere else it covers every module.
+// or Outlook Calendar. Run it on any Moodle page while logged in, then choose
+// what to cover: the activity you are on, the module you are in, or every module.
+// Each deadline is marked high priority, with reminders before it is due.
 // https://github.com/ashgar99/duecal (MIT licence)
 
 (async () => {
   if (document.getElementById('duecal-root')) return;
+
+  // Settings you can change. See "Customising" in the README.
+  const REMINDERS = ['P14D', 'P1D', 'PT2H']; // alerts before each deadline: 14 days, 1 day and 2 hours
+  const PRIORITY = 1; // 1 is high, 5 is normal and 9 is low
 
   // Panel UI, kept in a shadow root so Moodle's styles cannot affect it
   const host = document.createElement('div');
@@ -33,13 +38,25 @@
       .action:hover { background: #e8e8ed; }
       .panel.done .action { background: #f2f2f5; color: #1d1d1f; }
       .panel.error .fill { background: #e5484d; }
+      .ask { font-weight: 500; margin-bottom: 14px; }
+      .opt { display: block; width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 999px; background: #f2f2f5; color: #1d1d1f; font: inherit; font-weight: 500; cursor: pointer; }
+      .opt:hover { background: #e8e8ed; }
+      .opt:focus-visible { outline: 2px solid #e5483b; outline-offset: 2px; }
+      .opt.first { background: #e5483b; color: #fff; }
+      .opt.first:hover { background: #d33a2e; }
+      .note { margin-top: 10px; font-size: 12px; color: #6e6e73; }
+      [hidden] { display: none !important; }
     </style>
     <div class="panel" role="status" aria-live="polite">
       <div class="head"><div class="title"><span class="dot"></span>Duecal</div><button class="x" aria-label="Close">&times;</button></div>
       <div class="module"></div>
-      <div class="status">Getting ready...</div>
-      <div class="bar"><div class="fill"></div></div>
-      <div class="meta"><span class="count"></span><span class="file"></span></div>
+      <div class="choose" hidden><div class="ask">Which deadlines would you like?</div><div class="opts"></div></div>
+      <div class="work">
+        <div class="status">Getting ready...</div>
+        <div class="bar"><div class="fill"></div></div>
+        <div class="meta"><span class="count"></span><span class="file"></span></div>
+        <p class="note next" hidden></p>
+      </div>
       <button class="action">Cancel</button>
     </div>`;
 
@@ -63,7 +80,7 @@
   };
   $('.x').onclick = () => { cancelled = true; close(); };
   $('.action').onclick = () => {
-    if (finished) return close();
+    if (finished || !$('.choose').hidden) return close();
     cancelled = true;
     ui.status('Cancelling...');
   };
@@ -98,7 +115,7 @@
     const d = new Date(secs * 1000);
     return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
   };
-  const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
   const fold = line => {
     const out = [];
     while (line.length > 74) { out.push(line.slice(0, 74)); line = ' ' + line.slice(74); }
@@ -111,33 +128,87 @@
   };
   const KEEP = new Set(['due', 'close', 'expectcompletionon']);
 
+  // Turn a reminder such as P14D or PT2H into words, for the panel
+  const words = r => {
+    const m = r.match(/^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/);
+    if (!m) return r;
+    const parts = [[m[1], 'week'], [m[2], 'day'], [m[3], 'hour'], [m[4], 'minute']].filter(x => x[0]).map(([n, u]) => `${n} ${u}${n === '1' ? '' : 's'}`);
+    return parts.join(' ');
+  };
+  const list = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
+
+  // Ask what to cover, offering only the choices that make sense on this page
+  const choose = options => new Promise(ok => {
+    $('.work').hidden = true;
+    $('.choose').hidden = false;
+    $('.action').hidden = true;
+    $('.opts').innerHTML = '';
+    options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (i === 0 ? ' first' : '');
+      b.textContent = o.label;
+      b.onclick = () => { $('.choose').hidden = true; $('.work').hidden = false; $('.action').hidden = false; ok(o.value); };
+      $('.opts').appendChild(b);
+    });
+  });
+
   try {
     if (!window.M || !M.cfg || !M.cfg.wwwroot) {
       ui.progress(100);
       return finish('Open any page on your Moodle site while logged in, then click the bookmark again.', 'error');
     }
 
-    // Work out which modules to cover: this one, or all of them
-    let courses = [];
-    const here = new URLSearchParams(location.search).get('id');
+    // Where are we? Moodle tells every page which module it belongs to
+    const bodyCourse = (document.body.className.match(/\bcourse-(\d+)\b/) || [])[1];
+    const courseId = Number(M.cfg.courseId || bodyCourse || 0);
+    const inModule = courseId > 1; // 1 is the site's front page
+    const pageId = Number(new URLSearchParams(location.search).get('id'));
+    const activity = (location.pathname.match(/\/mod\/(\w+)\/view\.php/) || [])[1];
+    const pageTitle = clean(document.querySelector('#region-main h1, .page-header-headings h1, h1')?.innerText || document.title);
+
     ui.status('Finding your modules');
     ui.progress(10);
-    if (/\/course\/view\.php/.test(location.pathname) && here) {
-      courses = [{ id: Number(here), fullname: clean(document.querySelector('h1')?.innerText || document.title), shortname: '' }];
-      ui.scope(courses[0].fullname);
-    } else {
-      const seen = new Set();
-      for (const classification of ['all', 'hidden']) {
-        try {
-          const data = await ajax('core_course_get_enrolled_courses_by_timeline_classification', { classification, limit: 0, offset: 0, sort: 'fullname' });
-          (data.courses || []).forEach(c => { if (!seen.has(c.id)) { seen.add(c.id); courses.push(c); } });
-        } catch (e) { if (classification === 'all') throw e; }
-      }
-      ui.scope(`All modules (${courses.length})`);
+    const enrolled = [];
+    const seen = new Set();
+    for (const classification of ['all', 'hidden']) {
+      try {
+        const data = await ajax('core_course_get_enrolled_courses_by_timeline_classification', { classification, limit: 0, offset: 0, sort: 'fullname' });
+        (data.courses || []).forEach(c => { if (!seen.has(c.id)) { seen.add(c.id); enrolled.push(c); } });
+      } catch (e) { if (classification === 'all' && !inModule) throw e; }
     }
-    if (!courses.length) {
+    let thisModule = null;
+    if (inModule) {
+      thisModule = enrolled.find(c => Number(c.id) === courseId) || { id: courseId, fullname: document.title, shortname: '' };
+      thisModule = { ...thisModule, id: courseId, fullname: clean(thisModule.fullname) };
+    }
+
+    const options = [];
+    if (activity && pageId && thisModule) options.push({ value: 'activity', label: /^(assign|turnitintooltwo)$/.test(activity) ? 'This assignment' : 'This activity' });
+    if (thisModule) options.push({ value: 'module', label: 'This module' });
+    if (enrolled.length) options.push({ value: 'all', label: 'All modules' });
+    if (!options.length) {
       ui.progress(100);
       return finish('No modules were found on your account.', 'error');
+    }
+    const scope = await choose(options);
+    check();
+
+    let courses;
+    let only = null; // the activity's instance, when you chose a single assignment
+    if (scope === 'all') {
+      courses = enrolled;
+      ui.scope(`All modules (${courses.length})`);
+    } else {
+      courses = [thisModule];
+      ui.scope(scope === 'activity' ? pageTitle : thisModule.fullname);
+      if (scope === 'activity') {
+        try {
+          const data = await ajax('core_course_get_course_module', { cmid: pageId });
+          only = { modname: data.cm.modname, instance: Number(data.cm.instance) };
+        } catch (e) {
+          only = { modname: activity, instance: null };
+        }
+      }
     }
     const byId = new Map(courses.map(c => [Number(c.id), c]));
 
@@ -167,11 +238,16 @@
       }
     }
     events = events.filter(ev => KEEP.has(ev.eventtype) && byId.has(Number(ev.courseid)));
+    if (only) {
+      events = events.filter(ev => ev.modulename === only.modname &&
+        (only.instance ? Number(ev.instance) === only.instance : (ev.name || '').toLowerCase().includes(pageTitle.toLowerCase())));
+    }
     events.sort((a, b) => a.timestart - b.timestart);
 
     if (!events.length) {
       ui.progress(100);
-      return finish('No upcoming deadlines were found in your modules.', 'error');
+      const where = only ? `for ${pageTitle}` : courses.length === 1 ? 'in this module' : 'in your modules';
+      return finish(`No upcoming deadlines were found ${where}.`, 'error');
     }
 
     // Build the calendar file
@@ -195,8 +271,10 @@
         fold(`SUMMARY:${esc(short ? `${ev.name} (${short})` : ev.name)}`),
         fold(`DESCRIPTION:${esc(desc)}`),
         fold(`URL:${link}`),
-        'BEGIN:VALARM', 'ACTION:DISPLAY', fold(`DESCRIPTION:${esc(ev.name)}`), 'TRIGGER:-P1D', 'END:VALARM',
-        'BEGIN:VALARM', 'ACTION:DISPLAY', fold(`DESCRIPTION:${esc(ev.name)}`), 'TRIGGER:-PT2H', 'END:VALARM',
+        `PRIORITY:${PRIORITY}`,
+        `X-MICROSOFT-CDO-IMPORTANCE:${PRIORITY <= 4 ? 2 : PRIORITY >= 6 ? 0 : 1}`,
+        'CATEGORIES:Deadline',
+        ...REMINDERS.flatMap(r => ['BEGIN:VALARM', 'ACTION:DISPLAY', fold(`DESCRIPTION:${esc(`${ev.name} (in ${words(r)})`)}`), `TRIGGER:-${r}`, 'END:VALARM']),
         'END:VEVENT');
       ui.count(`${events.length} deadline${events.length === 1 ? '' : 's'}`);
     }
@@ -206,13 +284,17 @@
     const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${courses.length === 1 ? courses[0].fullname : 'Moodle deadlines'} (Duecal).ics`;
+    a.download = `${only ? `${courses[0].fullname} - ${pageTitle}` : courses.length === 1 ? courses[0].fullname : 'Moodle deadlines'} (Duecal).ics`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     ui.progress(100);
     const next = events.find(ev => ev.timestart >= now);
     if (next) ui.file(`Next: ${next.name}`);
-    finish(`Done. ${events.length} deadline${events.length === 1 ? '' : 's'} saved. Open the file to add them to your calendar.`, 'done');
+    finish(`Done. ${events.length} deadline${events.length === 1 ? '' : 's'} saved. Open the downloaded file to add ${events.length === 1 ? 'it' : 'them'} to your calendar.`, 'done');
+    $('.next').hidden = false;
+    $('.next').textContent = REMINDERS.length
+      ? `Each one is marked high priority, with reminders ${list(REMINDERS.map(words))} before it is due.`
+      : 'Each one is marked high priority.';
   } catch (e) {
     if (cancelled) {
       finish('Cancelled. Nothing was downloaded.');

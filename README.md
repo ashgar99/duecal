@@ -13,10 +13,11 @@
 
 ## Features ✨
 
-- Collects assignment, quiz and other activity deadlines from every Moodle module you are enrolled on, or just the module you are viewing.
+- Collects assignment, quiz and other activity deadlines from Moodle, and asks whether you want the assignment you are on, the module you are in, or every module.
 - Covers deadlines from a month ago to a year ahead.
 - Downloads one standard calendar file (`.ics`) that works with Apple Calendar, Google Calendar and Outlook.
-- Each deadline is a half-hour block ending at the exact due time, named with the module code, with reminders a day and two hours before.
+- Each deadline is a half-hour block ending at the exact due time, named with the module code.
+- Every deadline is marked high priority, with reminders two weeks, one day and two hours before it is due. You can change these (see [Customising](#customising-)).
 - Running it again later updates deadlines that have moved, rather than duplicating them (in Apple Calendar and Outlook).
 - Runs in your browser using your existing login. There is nothing to install.
 
@@ -24,8 +25,11 @@
 ## Usage 🛠
 
 1. Go to the [install page](https://ashgar99.github.io/duecal/) and drag the **Duecal** button onto your bookmarks bar.
-2. Log in to Moodle and click the bookmark: on your Dashboard for every module, or on a module page for just that one.
-3. Open the downloaded file to add the deadlines to your calendar.
+2. Log in to Moodle and click the bookmark, then choose which deadlines you want:
+   - **This assignment** appears when you are on an assignment or other activity page.
+   - **This module** appears anywhere inside a module.
+   - **All modules** covers every module you are enrolled on. This is the one to use at the start of each term.
+3. Open the downloaded file to add the deadlines to your calendar, as described below.
 
 ### Adding the file to your calendar
 
@@ -36,6 +40,11 @@
 | Outlook | Double-click the file, or in Outlook on the web choose **Add calendar > Upload from file**. |
 
 Tip: import into a separate calendar called "Deadlines", so you can hide or replace them all at once.
+
+Not every calendar app keeps everything in the file:
+
+- **Reminders:** Apple Calendar and Outlook keep all three. Google Calendar ignores reminders in imported files and uses your calendar's default notifications instead, so set those in Google Calendar's settings.
+- **High priority:** Outlook shows deadlines as high importance. Apple Calendar and Google Calendar do not display priority for events, so in those apps the reminders do the work.
 
 
 ## Browser support 🌐
@@ -66,6 +75,31 @@ Tip: import into a separate calendar called "Deadlines", so you can hide or repl
 ## Privacy and security 🔒
 
 The script is short and fully readable in [`duecal.js`](duecal.js). It only talks to your own Moodle site, using the login you already have, and creates the calendar file on your computer. No data is collected or sent anywhere else.
+
+
+## Customising 🎛️
+
+The reminders and priority are set at the top of [`duecal.js`](duecal.js):
+
+```js
+const REMINDERS = ['P14D', 'P1D', 'PT2H']; // alerts before each deadline: 14 days, 1 day and 2 hours
+const PRIORITY = 1; // 1 is high, 5 is normal and 9 is low
+```
+
+Each reminder is a length of time before the deadline, written in the standard calendar format:
+
+| Write | Means |
+| --- | --- |
+| `P2W` | 2 weeks |
+| `P14D` | 14 days |
+| `P3D` | 3 days |
+| `PT12H` | 12 hours |
+| `PT30M` | 30 minutes |
+| `P1DT12H` | 1 day and 12 hours |
+
+For example, `['P14D', 'P7D', 'P1D']` gives reminders two weeks, one week and one day before. Use `[]` for no reminders.
+
+To use your own settings, fork this repository, edit those two lines, run `node build.js`, and drag the button from your own copy of the install page in `docs/`. If you only want to change the reminders for deadlines already in your calendar, you can edit them in your calendar app instead.
 
 
 ## Development 🧩
