@@ -1,0 +1,42 @@
+# Duecal
+
+> Duecal is a free, open-source bookmark that collects your Moodle assignment and quiz deadlines into one calendar file (.ics) for Google, Apple or Outlook Calendar, with every deadline marked high priority and reminders before it is due.
+
+- Website: https://ashgar99.github.io/duecal/
+- Source code: https://github.com/ashgar99/duecal
+- Licence: MIT. Free, with no account, adverts or tracking.
+- Part of Unikit, free tools for university students: https://ashgar99.github.io/
+
+## Features
+
+- Collects assignment, quiz and activity deadlines from Moodle
+- Exports one .ics file for Google, Apple or Outlook Calendar
+- Reminders two weeks, one day and two hours before each deadline
+- Choose one assignment, one module or every module
+- Running it again updates moved deadlines instead of duplicating them
+
+## Questions and answers
+
+### What is Duecal?
+
+Duecal is a free, open-source bookmark that collects your Moodle assignment and quiz deadlines into one calendar file (.ics) for Google, Apple or Outlook Calendar, with reminders before each deadline.
+
+### How do I add my Moodle deadlines to Google Calendar?
+
+Click the Duecal bookmark on Moodle and choose all modules. Then, in Google Calendar on a computer, open Settings, choose Import and export, and import the downloaded file into a calendar.
+
+### How do I add Moodle deadlines to Apple Calendar or my iPhone?
+
+Double-click the downloaded file on a Mac and choose a calendar. On an iPhone, open the file from Files or Mail and add the events. If your calendars sync with iCloud, they appear on all your devices.
+
+### Will I get reminders before deadlines?
+
+Yes. Each deadline has reminders two weeks, one day and two hours before it is due in Apple Calendar and Outlook. Google Calendar uses your calendar’s default notifications for imported events instead.
+
+### What if a lecturer changes a deadline?
+
+Run Duecal again and import the new file. Each deadline keeps the same identifier, so Apple Calendar and Outlook update the moved deadline rather than adding a duplicate.
+
+### Does Duecal include Turnitin deadlines?
+
+Only if your university also puts them in the Moodle calendar. Duecal includes every deadline Moodle’s calendar knows about.
