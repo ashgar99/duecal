@@ -16,23 +16,23 @@
   const shadow = host.attachShadow({ mode: 'open' });
   shadow.innerHTML = `
     <style>
-      .panel { width: 320px; padding: 20px; border-radius: 18px; background: #111; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 20px 50px rgba(0,0,0,0.45); color: #f5f5f7;
+      .panel { width: 320px; padding: 20px; border-radius: 18px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 12px 40px rgba(0,0,0,0.16); color: #1d1d1f;
         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
       .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
       .title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
       .dot { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #ff7a6b, #e5383b); }
-      .x { background: none; border: 0; color: #8b8b94; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 2px; }
-      .x:hover { color: #f5f5f7; }
-      .module { color: #a1a1aa; font-size: 13px; margin-bottom: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .x { background: none; border: 0; color: #86868b; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 2px; }
+      .x:hover { color: #1d1d1f; }
+      .module { color: #6e6e73; font-size: 13px; margin-bottom: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .status { font-weight: 500; margin-bottom: 10px; }
-      .bar { height: 6px; border-radius: 3px; background: #262626; overflow: hidden; }
-      .fill { height: 100%; width: 0; background: #ff7a6b; border-radius: 3px; transition: width 0.3s ease; }
-      .meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 12px; color: #8b8b94; min-height: 17px; }
+      .bar { height: 6px; border-radius: 3px; background: #ececf0; overflow: hidden; }
+      .fill { height: 100%; width: 0; background: #e5483b; border-radius: 3px; transition: width 0.3s ease; }
+      .meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 12px; color: #6e6e73; min-height: 17px; }
       .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
-      .action { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 999px; background: #1d1d1d; color: #f5f5f7; font: inherit; font-weight: 500; cursor: pointer; }
-      .action:hover { background: #262626; }
-      .panel.done .action { background: #ff7a6b; color: #000; }
-      .panel.error .fill { background: #f87171; }
+      .action { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 999px; background: #f2f2f5; color: #1d1d1f; font: inherit; font-weight: 500; cursor: pointer; }
+      .action:hover { background: #e8e8ed; }
+      .panel.done .action { background: #f2f2f5; color: #1d1d1f; }
+      .panel.error .fill { background: #e5484d; }
     </style>
     <div class="panel" role="status" aria-live="polite">
       <div class="head"><div class="title"><span class="dot"></span>Duecal</div><button class="x" aria-label="Close">&times;</button></div>
